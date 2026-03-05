@@ -47,14 +47,12 @@ const ClusterDetails = ({ cluster, infraEnv }: ClusterDetailsProps) => {
   const location = useLocation();
   const isSingleClusterFeatureEnabled = useFeature('ASSISTED_INSTALLER_SINGLE_CLUSTER_FEATURE');
   const defaultPullSecret = usePullSecret();
-  const pullSecret = isSingleClusterFeatureEnabled ? infraEnv?.pullSecret || '' : defaultPullSecret;
+  const pullSecret = isSingleClusterFeatureEnabled
+    ? (infraEnv as InfraEnv & { pullSecret?: string })?.pullSecret || defaultPullSecret
+    : defaultPullSecret;
 
   const handleClusterUpdate = React.useCallback(
-    async (
-      clusterId: Cluster['id'],
-      params: ClusterDetailsUpdateParams,
-      addCustomManifests: boolean,
-    ) => {
+    async (clusterId: Cluster['id'], params: ClusterDetailsUpdateParams) => {
       clearAlerts();
 
       try {
@@ -63,7 +61,6 @@ const ClusterDetails = ({ cluster, infraEnv }: ClusterDetailsProps) => {
           cluster?.tags,
           params,
         );
-        await clusterWizardContext.updateUISettings({ addCustomManifests });
         dispatch(updateCluster(updatedCluster));
 
         canNextClusterDetails({ cluster: updatedCluster }) && clusterWizardContext.moveNext();
@@ -80,7 +77,7 @@ const ClusterDetails = ({ cluster, infraEnv }: ClusterDetailsProps) => {
   );
 
   const handleClusterCreate = React.useCallback(
-    async (params: ClusterCreateParamsWithStaticNetworking, addCustomManifests: boolean) => {
+    async (params: ClusterCreateParamsWithStaticNetworking) => {
       clearAlerts();
       try {
         const searchParams = new URLSearchParams(location.search);
@@ -108,14 +105,14 @@ const ClusterDetails = ({ cluster, infraEnv }: ClusterDetailsProps) => {
         );
         navigate(`../${cluster.id}`, { state: ClusterWizardFlowStateNew });
 
-        const uiPatch: UISettingsValues = { addCustomManifests };
         if (isAssistedMigration) {
-          //For Assisted Migration we need to enable virtualization bundle
-          uiPatch.bundlesSelected = ['virtualization'];
-          uiPatch.isAssistedMigration = true;
+          const uiPatch: UISettingsValues = {
+            bundlesSelected: ['virtualization'],
+            isAssistedMigration: true,
+          };
+          await UISettingService.update(cluster.id, uiPatch);
+          await clusterWizardContext.updateUISettings(uiPatch);
         }
-        await UISettingService.update(cluster.id, uiPatch);
-        await clusterWizardContext.updateUISettings(uiPatch); // keeps local state current
       } catch (e) {
         handleApiError(e, () =>
           addAlert({ title: 'Failed to create new cluster', message: getApiErrorMessage(e) }),

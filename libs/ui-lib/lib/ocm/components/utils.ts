@@ -5,3 +5,7 @@ export const isOciPlatformType = (cluster: Cluster): boolean => {
     cluster.platform?.type === 'external' && cluster.platform?.external?.platformName === 'oci'
   );
 };
+
+export const isExternalPlatform = (cluster: Cluster): boolean => {
+  return cluster.platform?.type === 'external';
+};
