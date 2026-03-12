@@ -19,6 +19,7 @@ import { Cluster, InfraEnv } from '@openshift-assisted/types/assisted-installer-
 import { useUISettings } from '../../hooks';
 import { AlertVariant } from '@patternfly/react-core';
 import { useFeature } from '../../hooks/use-feature';
+import { isExternalPlatform, isThirdPartyCNI } from '../utils';
 
 const addStepToClusterWizard = (
   wizardStepIds: ClusterWizardStepsType[],
@@ -50,7 +51,7 @@ const removeStepFromClusterWizard = (
 const getWizardStepIds = (
   wizardStepIds: ClusterWizardStepsType[] | undefined,
   staticIpView?: StaticIpView | 'dhcp-selected',
-  customManifestsStep?: boolean,
+
   isSingleClusterFeatureEnabled?: boolean,
 ): ClusterWizardStepsType[] => {
   let stepsCopy = wizardStepIds ? [...wizardStepIds] : [...defaultWizardSteps];
@@ -64,11 +65,6 @@ const getWizardStepIds = (
     stepsCopy = removeStepFromClusterWizard(stepsCopy, 'static-ip-network-wide-configurations', 2);
   }
 
-  if (customManifestsStep) {
-    stepsCopy = addStepToClusterWizard(stepsCopy, 'networking', ['custom-manifests']);
-  } else {
-    stepsCopy = removeStepFromClusterWizard(stepsCopy, 'custom-manifests', 1);
-  }
   if (isSingleClusterFeatureEnabled) {
     stepsCopy = addStepToClusterWizard(stepsCopy, 'networking', ['credentials-download']);
   }
@@ -119,7 +115,7 @@ const ClusterWizardContextProvider = ({
   const [disconnectedWizardStepIds, setDisconnectedWizardStepIds] =
     React.useState<ClusterWizardStepsType[]>(disconnectedSteps);
   const [wizardPerPage, setWizardPerPage] = React.useState(10);
-  const [customManifestsStep, setCustomManifestsStep] = React.useState<boolean>(false);
+  const [customManifestsStep, setCustomManifestsStep] = React.useState<boolean>(true);
   const [installDisconnected, setInstallDisconnected] = React.useState(false);
   const [disconnectedInfraEnv, setDisconnectedInfraEnv] = React.useState<InfraEnv | undefined>(
     infraEnv,
@@ -140,10 +136,13 @@ const ClusterWizardContextProvider = ({
   React.useEffect(() => {
     if (!UISettingsLoading) {
       const staticIpInfo = infraEnv ? getStaticIpInfo(infraEnv) : undefined;
-      const customManifestsStepEnabled = !!uiSettings?.addCustomManifests;
-      const customManifestsStepNeedsToBeFilled = !!(
-        uiSettings?.addCustomManifests && !uiSettings?.customManifestsAdded
-      );
+      let customManifestsRequired = false;
+      if (cluster) {
+        customManifestsRequired =
+          isThirdPartyCNI(cluster.networkType) || isExternalPlatform(cluster);
+      }
+      const customManifestsStepNeedsToBeFilled =
+        customManifestsRequired && !uiSettings?.customManifestsAdded;
 
       const requiredStepId = getClusterWizardFirstStep(
         locationState,
@@ -152,11 +151,10 @@ const ClusterWizardContextProvider = ({
         cluster?.hosts,
         customManifestsStepNeedsToBeFilled,
       );
-
       const firstStepIds = getWizardStepIds(
         wizardStepIds,
         staticIpInfo?.view,
-        customManifestsStepEnabled,
+
         isSingleClusterFeatureEnabled,
       );
 
@@ -170,7 +168,7 @@ const ClusterWizardContextProvider = ({
 
       setWizardStepIds(firstStepIds);
       setClusterPermissions(cluster, permissions);
-      setCustomManifestsStep(!!uiSettings?.addCustomManifests);
+      setCustomManifestsStep(true);
     }
 
     if (
@@ -212,7 +210,7 @@ const ClusterWizardContextProvider = ({
         const newStepIds = getWizardStepIds(
           wizardStepIds,
           staticIpInfo.view,
-          customManifestsStep,
+
           isSingleClusterFeatureEnabled,
         );
         setWizardStepIds(newStepIds);
@@ -229,14 +227,7 @@ const ClusterWizardContextProvider = ({
 
     const onSetAddCustomManifestsStep = (addCustomManifest: boolean) => {
       setCustomManifestsStep(addCustomManifest);
-      setWizardStepIds(
-        getWizardStepIds(
-          wizardStepIds,
-          undefined,
-          addCustomManifest,
-          isSingleClusterFeatureEnabled,
-        ),
-      );
+      setWizardStepIds(getWizardStepIds(wizardStepIds, undefined, isSingleClusterFeatureEnabled));
     };
 
     return {
@@ -266,14 +257,7 @@ const ClusterWizardContextProvider = ({
             getDisconnectedWizardStepIds(disconnectedWizardStepIds, view),
           );
         } else {
-          setWizardStepIds(
-            getWizardStepIds(
-              wizardStepIds,
-              view,
-              customManifestsStep,
-              isSingleClusterFeatureEnabled,
-            ),
-          );
+          setWizardStepIds(getWizardStepIds(wizardStepIds, view, isSingleClusterFeatureEnabled));
         }
       },
       onUpdateHostNetworkConfigType(type: HostsNetworkConfigurationType): void {
@@ -295,18 +279,13 @@ const ClusterWizardContextProvider = ({
               getWizardStepIds(
                 wizardStepIds,
                 StaticIpView.FORM,
-                customManifestsStep,
+
                 isSingleClusterFeatureEnabled,
               ),
             );
           } else {
             setWizardStepIds(
-              getWizardStepIds(
-                wizardStepIds,
-                'dhcp-selected',
-                customManifestsStep,
-                isSingleClusterFeatureEnabled,
-              ),
+              getWizardStepIds(wizardStepIds, 'dhcp-selected', isSingleClusterFeatureEnabled),
             );
           }
         }

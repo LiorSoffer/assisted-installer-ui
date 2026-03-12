@@ -5,6 +5,11 @@ import {
   DetailList,
   getDefaultCpuArchitecture,
   isDualStack,
+  NETWORK_TYPE_CALICO,
+  NETWORK_TYPE_CILIUM,
+  NETWORK_TYPE_CISCO_ACI,
+  NETWORK_TYPE_NONE,
+  NETWORK_TYPE_OVN,
   NETWORK_TYPE_SDN,
   selectApiVip,
   selectIngressVip,
@@ -26,9 +31,29 @@ type ClusterPropertiesProps = {
 
 export const getNetworkType = (clusterNetworkType: Cluster['networkType']): string => {
   let networkType: string;
-  clusterNetworkType === NETWORK_TYPE_SDN
-    ? (networkType = 'Software-Defined Networking (SDN)')
-    : (networkType = 'Open Virtual Network (OVN)');
+  switch (clusterNetworkType) {
+    case NETWORK_TYPE_SDN:
+      networkType = 'Software-Defined Networking (SDN)';
+      break;
+    case NETWORK_TYPE_OVN:
+      networkType = 'Open Virtual Network (OVN)';
+      break;
+    case NETWORK_TYPE_CISCO_ACI:
+      networkType = 'Cisco ACI';
+      break;
+    case NETWORK_TYPE_CILIUM:
+      networkType = 'Isovalent Cilium';
+      break;
+    case NETWORK_TYPE_CALICO:
+      networkType = 'Tigera Calico';
+      break;
+    case NETWORK_TYPE_NONE:
+      networkType = 'None (Custom CNI)';
+      break;
+    default:
+      networkType = 'Open Virtual Network (OVN)';
+      break;
+  }
   return networkType;
 };
 
