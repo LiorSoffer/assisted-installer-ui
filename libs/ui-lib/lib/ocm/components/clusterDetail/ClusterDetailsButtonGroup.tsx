@@ -34,12 +34,15 @@ const LaunchOpenshiftConsoleButton: React.FC<{
   const { t } = useTranslation();
   return (
     <ToolbarButton
-      type="button"
       variant={ButtonVariant.primary}
+      component="a"
+      href={consoleUrl}
+      target="_blank"
+      rel="noopener"
       isDisabled={isDisabled}
-      onClick={() => window.open(consoleUrl, '_blank', 'noopener')}
       icon={<ExternalLinkAltIcon />}
       iconPosition="right"
+      id={id}
       data-testid={id}
     >
       {t('ai:Launch OpenShift Console')}
